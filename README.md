@@ -14,9 +14,7 @@ To reconcile this trade-off, we propose **SMoPE**, a novel framework that integr
 
 Extensive experiments across multiple CL benchmarks demonstrate that SMoPE consistently outperforms task-specific prompt methods and achieves performance competitive with state-of-the-art approaches, all while significantly reducing parameter counts and computational costs.
 
-<p align="center">
-<img src="https://github.com/Minhchuyentoancbn/SMoPE/blob/master/figures/model.pdf" alt="Alt text" width="400"/>
-</p>
+![](./figures/model.jpg)
 
 ## Requirements
 Create a conda environment and install the following packages:

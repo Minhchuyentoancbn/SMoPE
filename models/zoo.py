@@ -3,10 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 import torchvision.models as models
+import timm
 from torch.autograd import Variable
 from .vit import VisionTransformer
 import numpy as np
 import copy
+import os
 
 
 # Our method
@@ -525,7 +527,7 @@ class CodaPrompt(nn.Module):
 
 
 def ortho_penalty(t):
-    return ((t @ t.T - torch.eye(t.shape[0]).cuda()) ** 2).mean()
+    return ((t @ t.T - torch.eye(t.shape[0], device=t.device)) ** 2).mean()
 
 
 # @article{wang2022dualprompt,
@@ -722,21 +724,41 @@ class ViTZoo(nn.Module):
             # zoo_model.load_state_dict(load_dict)
 
             if self.pretrained == "sup21k":
-                dict_path = (
-                    "pretrained/vit_base_patch16_224_augreg_in21k.bin"  # with head
-                )
-                load_dict = torch.load(dict_path)
+                dict_path = "pretrained/vit_base_patch16_224_augreg_in21k.bin"
+                if os.path.exists(dict_path):
+                    load_dict = torch.load(dict_path, map_location="cpu")
+                else:
+                    print(
+                        f"Local checkpoint missing at {dict_path}. "
+                        "Downloading sup21k weights via timm..."
+                    )
+                    load_dict = timm.create_model(
+                        "vit_base_patch16_224.augreg_in21k", pretrained=True
+                    ).state_dict()
+                    os.makedirs(os.path.dirname(dict_path), exist_ok=True)
+                    torch.save(load_dict, dict_path)
                 del load_dict["head.weight"]
                 del load_dict["head.bias"]
                 zoo_model.load_state_dict(load_dict)
-                print(f"Loading {self.pretrained} from {dict_path} ...")
+                print(f"Loading {self.pretrained} weights ...")
             elif self.pretrained == "sup1k":
-                dict_path = "pretrained/vit_base_patch16_224_augreg2_in21k_ft_in1k.bin"  # with head
-                load_dict = torch.load(dict_path)
+                dict_path = "pretrained/vit_base_patch16_224_augreg2_in21k_ft_in1k.bin"
+                if os.path.exists(dict_path):
+                    load_dict = torch.load(dict_path, map_location="cpu")
+                else:
+                    print(
+                        f"Local checkpoint missing at {dict_path}. "
+                        "Downloading sup1k weights via timm..."
+                    )
+                    load_dict = timm.create_model(
+                        "vit_base_patch16_224.augreg2_in21k_ft_in1k", pretrained=True
+                    ).state_dict()
+                    os.makedirs(os.path.dirname(dict_path), exist_ok=True)
+                    torch.save(load_dict, dict_path)
                 del load_dict["head.weight"]
                 del load_dict["head.bias"]
                 zoo_model.load_state_dict(load_dict)
-                print(f"Loading {self.pretrained} from {dict_path} ...")
+                print(f"Loading {self.pretrained} weights ...")
             elif self.pretrained == "ibot1k":
                 dict_path = "pretrained/ibot_vit_base16.pth"  # ['state_dict']
                 ckpt = torch.load(dict_path, map_location="cpu")[

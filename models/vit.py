@@ -407,7 +407,7 @@ class VisionTransformer(nn.Module):
         x = x + self.pos_embed[:, : x.size(1), :]
         x = self.pos_drop(x)
 
-        prompt_loss = torch.zeros((1,), requires_grad=True).cuda()
+        prompt_loss = torch.zeros((1,), device=x.device, dtype=x.dtype)
 
         prompt_scores = []
 

@@ -44,12 +44,9 @@ class NormalNN(nn.Module):
         # supervised criterion
         self.criterion_fn = nn.CrossEntropyLoss(reduction="none")
 
-        # cuda gpu
-        if learner_config["gpuid"][0] >= 0:
-            self.cuda()
-            self.gpu = True
-        else:
-            self.gpu = False
+        self.device = self._get_device()
+        self.gpu = self.device.type != "cpu"
+        self._move_to_device()
 
         # highest class index from past task
         self.last_valid_out_dim = 0
@@ -114,8 +111,8 @@ class NormalNN(nn.Module):
 
                         # send data to gpu
                         if self.gpu:
-                            x = x.cuda()
-                            y = y.cuda()
+                            x = x.to(self.device)
+                            y = y.to(self.device)
 
                         # model update
                         loss, output = self.update_model(x, y)
@@ -166,8 +163,8 @@ class NormalNN(nn.Module):
 
                         # send data to gpu
                         if self.gpu:
-                            x = x.cuda()
-                            y = y.cuda()
+                            x = x.to(self.device)
+                            y = y.to(self.device)
 
                         # model update
                         loss, output = self.update_model(x, y)
@@ -260,8 +257,8 @@ class NormalNN(nn.Module):
 
             if self.gpu:
                 with torch.no_grad():
-                    input = input.cuda()
-                    target = target.cuda()
+                    input = input.to(self.device)
+                    target = target.to(self.device)
             if task_in is None:
                 # Add torch.no_grad to save memory
                 with torch.no_grad():
@@ -325,8 +322,8 @@ class NormalNN(nn.Module):
     def data_weighting(self, dataset, num_seen=None):
         self.dw_k = torch.tensor(np.ones(self.valid_out_dim + 1, dtype=np.float32))
         # cuda
-        if self.cuda:
-            self.dw_k = self.dw_k.cuda()
+        if self.gpu:
+            self.dw_k = self.dw_k.to(self.device)
 
     def save_model(self, filename):
         model_state = self.model.state_dict()
@@ -337,18 +334,18 @@ class NormalNN(nn.Module):
         self.log("=> Save Done")
 
     def load_model(self, filename):
-        state_dict = torch.load(filename + "class.pth")
+        state_dict = torch.load(filename + "class.pth", map_location="cpu")
         self.model.load_state_dict(state_dict)
         # self.model.load_state_dict(torch.load(filename + 'class.pth'))
         self.log("=> Load Done from {}".format(filename))
         if self.gpu:
-            self.model = self.model.cuda()
+            self.model = self.model.to(self.device)
         self.model.eval()
 
     def load_model_other(self, filename, model):
-        model.load_state_dict(torch.load(filename + "class.pth"))
+        model.load_state_dict(torch.load(filename + "class.pth", map_location="cpu"))
         if self.gpu:
-            model = model.cuda()
+            model = model.to(self.device)
         return model.eval()
 
     # sets model optimizers
@@ -426,12 +423,13 @@ class NormalNN(nn.Module):
             + self.memory_size * dataset_size[0] * dataset_size[1] * dataset_size[2]
         )
 
-    def cuda(self):
-        torch.cuda.set_device(self.config["gpuid"][0])
-        self.model = self.model.cuda()
-        self.criterion_fn = self.criterion_fn.cuda()
-        # Multi-GPU
-        if len(self.config["gpuid"]) > 1:
+    def _move_to_device(self):
+        if self.device.type == "cuda":
+            torch.cuda.set_device(self.config["gpuid"][0])
+        self.model = self.model.to(self.device)
+        self.criterion_fn = self.criterion_fn.to(self.device)
+        # Multi-GPU only applies to CUDA.
+        if self.device.type == "cuda" and len(self.config["gpuid"]) > 1:
             self.model = torch.nn.DataParallel(
                 self.model,
                 device_ids=self.config["gpuid"],
@@ -440,7 +438,12 @@ class NormalNN(nn.Module):
         return self
 
     def _get_device(self):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if self.config["gpuid"][0] >= 0 and torch.cuda.is_available():
+            device = torch.device("cuda", self.config["gpuid"][0])
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
         self.log("Running on:", device)
         return device
 

@@ -50,7 +50,7 @@ class Prompt(NormalNN):
     # sets model optimizers
     def init_optimizer(self):
 
-        if len(self.config["gpuid"]) > 1:
+        if self.device.type == "cuda" and len(self.config["gpuid"]) > 1:
             base_params = list(self.model.module.prompt.parameters())
             base_fc_params = list(self.model.module.last.parameters())
         else:
@@ -123,21 +123,6 @@ class Prompt(NormalNN):
     def create_model(self):
         pass
 
-    def cuda(self):
-        torch.cuda.set_device(self.config["gpuid"][0])
-        self.model = self.model.cuda()
-        self.criterion_fn = self.criterion_fn.cuda()
-
-        # Multi-GPU
-        if len(self.config["gpuid"]) > 1:
-            self.model = torch.nn.DataParallel(
-                self.model,
-                device_ids=self.config["gpuid"],
-                output_device=self.config["gpuid"][0],
-            )
-        return self
-
-
 # Our method
 class VQPrompt(Prompt):
     def __init__(self, learner_config):
@@ -171,7 +156,7 @@ class OnePrompt(Prompt):
 
     def init_optimizer(self, epoch_factor=1):
 
-        if len(self.config["gpuid"]) > 1:
+        if self.device.type == "cuda" and len(self.config["gpuid"]) > 1:
             base_params = list(self.model.module.prompt.parameters())
             base_fc_params = list(self.model.module.last.parameters())
         else:
@@ -277,8 +262,8 @@ class OnePrompt(Prompt):
                     self.model.train()
                     # send data to gpu
                     if self.gpu:
-                        x = x.cuda()
-                        y = y.cuda()
+                        x = x.to(self.device)
+                        y = y.to(self.device)
 
                     # model update
                     loss, output = self.update_model(x, y, dense=dense)
@@ -328,8 +313,8 @@ class OnePrompt(Prompt):
 
                     # send data to gpu
                     if self.gpu:
-                        x = x.cuda()
-                        y = y.cuda()
+                        x = x.to(self.device)
+                        y = y.to(self.device)
 
                     # model update
                     loss, output = self.update_model(x, y, dense=dense)
@@ -410,8 +395,8 @@ class OnePrompt(Prompt):
                 self.model.eval()
                 # send data to gpu
                 if self.gpu:
-                    x = x.cuda()
-                    y = y.cuda()
+                    x = x.to(self.device)
+                    y = y.to(self.device)
 
                 with torch.no_grad():
                     prompt_scores = self.model(x, train=False, return_attn=True)

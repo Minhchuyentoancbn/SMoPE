@@ -177,6 +177,7 @@ class Trainer:
         self.ca_lr = args.ca_lr
         self.ca_weight_decay = args.ca_weight_decay
         self.ca_batch_size_ratio = args.ca_batch_size_ratio
+        self.pin_memory = self.learner.device.type == "cuda"
 
     def task_eval(self, t_index, local=False, task="acc"):
 
@@ -193,7 +194,7 @@ class Trainer:
             shuffle=False,
             drop_last=False,
             num_workers=self.workers,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
         )
         if local:
             return self.learner.validation(
@@ -253,7 +254,7 @@ class Trainer:
                 shuffle=True,
                 drop_last=True,
                 num_workers=int(self.workers),
-                pin_memory=True,
+                pin_memory=self.pin_memory,
             )
 
             # increment task id in prompting modules
@@ -274,7 +275,7 @@ class Trainer:
                 shuffle=False,
                 drop_last=False,
                 num_workers=self.workers,
-                pin_memory=True,
+                pin_memory=self.pin_memory,
             )
             model_save_dir = (
                 self.model_top_dir
@@ -455,14 +456,14 @@ class Trainer:
                 shuffle=False,
                 drop_last=False,
                 num_workers=self.workers,
-                pin_memory=True,
+                pin_memory=self.pin_memory,
             )
             features_per_cls = []
             for i, (inputs, targets, task) in enumerate(data_loader_cls):
                 # send data to gpu
                 if self.learner.gpu:
-                    inputs = inputs.cuda()
-                    targets = targets.cuda()
+                    inputs = inputs.to(self.learner.device)
+                    targets = targets.to(self.learner.device)
 
                 features = model(inputs, return_pre_logits=True, train=False)
                 features_per_cls.append(features)
@@ -488,10 +489,10 @@ class Trainer:
                 for i in range(n_clusters):
                     cluster_data = features_per_cls[cluster_labels == i]
                     cluster_mean = torch.tensor(
-                        np.mean(cluster_data, axis=0), dtype=torch.float64
+                        np.mean(cluster_data, axis=0), dtype=torch.float32
                     ).to(inputs.device)
                     cluster_var = torch.tensor(
-                        np.var(cluster_data, axis=0), dtype=torch.float64
+                        np.var(cluster_data, axis=0), dtype=torch.float32
                     ).to(inputs.device)
                     cluster_means.append(cluster_mean)
                     cluster_vars.append(cluster_var)
@@ -526,7 +527,7 @@ class Trainer:
 
         criterion = torch.nn.CrossEntropyLoss()
         if self.learner.gpu:
-            criterion = criterion.cuda()
+            criterion = criterion.to(self.learner.device)
 
         for i in range(task_id):  # only take part of the samples after random permute
             crct_num += len(class_mask[i])
@@ -593,7 +594,9 @@ class Trainer:
             else:
                 raise NotImplementedError
 
-            sampled_data = torch.cat(sampled_data, dim=0).float().cuda()
+            sampled_data = (
+                torch.cat(sampled_data, dim=0).float().to(self.learner.device)
+            )
             sampled_label = torch.tensor(sampled_label).long().to(sampled_data.device)
             # print(sampled_data.shape)
 

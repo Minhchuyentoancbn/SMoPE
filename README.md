@@ -20,9 +20,9 @@ Prompt-based methods have recently gained prominence in Continual Learning (CL) 
 To reconcile this trade-off, we propose **SMoPE**, a novel framework that integrates the benefits of both strategies. Inspired by the relationship between Prefix Tuning and Mixture of Experts (MoE), SMoPE organizes a shared prompt into multiple "prompt experts" within a sparse MoE architecture.
 
 **Key Contributions:**
-*   **🧠 Sparse Activation:** Introduces a prompt-attention score aggregation mechanism to dynamically activate only a subset of relevant experts, effectively mitigating interference.
-*   **⚖️ Adaptive Noise:** A mechanism to encourage balanced expert utilization while preserving knowledge from prior tasks.
-*   **🔑 Prototype-based Loss:** Leverages prefix keys as implicit memory representations to enhance expert specialization.
+*   **⭐️ Sparse Activation:** Introduces a prompt-attention score aggregation mechanism to dynamically activate only a subset of relevant experts, effectively mitigating interference.
+*   **⭐️ Adaptive Noise:** A mechanism to encourage balanced expert utilization while preserving knowledge from prior tasks.
+*   **⭐️ Prototype-based Loss:** Leverages prefix keys as implicit memory representations to enhance expert specialization.
 
 Extensive experiments demonstrate that SMoPE consistently outperforms task-specific methods and competes with state-of-the-art approaches while significantly reducing parameter counts and computational costs.
 
